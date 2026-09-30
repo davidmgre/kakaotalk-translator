@@ -1,0 +1,18 @@
+{
+  "name": "kakaotalk-translator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local, read-only KakaoTalk reader with an English Swiss-data UI and optional CLI translation.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs",
+    "demo": "node server.mjs --demo",
+    "doctor": "node scripts/doctor.mjs",
+    "setup:kakaocli": "bash scripts/build-kakaocli.sh",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check lib/messages.mjs && node --check lib/runtime.mjs && node --check scripts/doctor.mjs && node --check scripts/release-audit.mjs",
+    "release:check": "node scripts/release-audit.mjs"
+  }
+}

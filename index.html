@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A local, read-only KakaoTalk reader with optional translation.">
+<title>KakaoTalk Translator</title>
+<script>
+try {
+  var savedTheme = localStorage.getItem("kakao-live.theme");
+  if (["light", "dark", "system"].includes(savedTheme)) document.documentElement.dataset.theme = savedTheme;
+} catch {}
+</script>
+<style>
+:root { color-scheme:light; --bg:#f5f5f1; --surface:#fff; --fg:#171918; --muted:#626660; --line:#d2d5ce; --soft:#eaede6; --accent:#d73125; --ok:#247045; --error:#b5261d; --focus:#2265d8; }
+html[data-theme="dark"] { color-scheme:dark; --bg:#151716; --surface:#1c1f1d; --fg:#f0f2eb; --muted:#a7ada4; --line:#3a403b; --soft:#272d28; --accent:#ff6b56; --ok:#9aca9f; --error:#ff8372; --focus:#92b8ff; }
+@media(prefers-color-scheme:dark) {
+  html[data-theme="system"] { color-scheme:dark; --bg:#151716; --surface:#1c1f1d; --fg:#f0f2eb; --muted:#a7ada4; --line:#3a403b; --soft:#272d28; --accent:#ff6b56; --ok:#9aca9f; --error:#ff8372; --focus:#92b8ff; }
+}
+* { box-sizing:border-box; }
+[hidden] { display:none!important; }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 "Helvetica Neue",Helvetica,Arial,system-ui,sans-serif; }
+button,input,select { font:inherit; }
+button { cursor:pointer; }
+button:disabled { cursor:not-allowed; opacity:.45; }
+button,input,select { border-radius:0; }
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
+.mono,.eyebrow,.section-index,.stat-value,.message-index { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-variant-numeric:tabular-nums; }
+.eyebrow { font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.shell { max-width:1440px; margin:0 auto; padding:0 32px; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
+body { height:100dvh; overflow:hidden; }
+header,.footnote { flex-shrink:0; }
+.topline { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 0; border-bottom:1px solid var(--line); }
+.brand { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:700; letter-spacing:.04em; }
+.brand-mark { display:grid; place-items:center; width:25px; height:25px; background:var(--accent); color:var(--surface); font-size:13px; }
+.top-meta { display:flex; align-items:center; gap:18px; }
+#settings-toggle { display:none; }
+.badge { border:1px solid var(--line); padding:3px 7px; font-size:10px; letter-spacing:.09em; font-weight:600; text-transform:uppercase; white-space:nowrap; }
+#connection { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11px; }
+.dot { width:6px; height:6px; background:var(--muted); }
+#connection.on .dot { background:var(--ok); }
+.hero { display:flex; align-items:flex-end; justify-content:space-between; gap:30px; padding:21px 0 20px; border-bottom:1px solid var(--fg); }
+h1 { font-size:clamp(32px,4.2vw,56px); line-height:1.04; letter-spacing:-.055em; margin:11px 0 0; font-weight:600; }
+.hero-note { margin:0; max-width:250px; color:var(--muted); font-size:12px; }
+.workspace { display:grid; grid-template-columns:258px minmax(0,1fr); flex:1; min-height:0; }
+.controls { border-right:1px solid var(--line); padding:0 25px 12px 0; min-height:0; overflow:hidden; }
+.controls-inner { height:100%; display:flex; flex-direction:column; }
+.control-section { padding:12px 0; border-bottom:1px solid var(--line); flex-shrink:0; }
+.section-heading { display:flex; gap:12px; align-items:baseline; margin-bottom:12px; }
+.section-index { font-size:10px; color:var(--accent); }
+h2 { margin:0; font-size:11px; text-transform:uppercase; letter-spacing:.12em; font-weight:600; }
+label { display:block; color:var(--muted); font-size:11px; margin-bottom:7px; }
+input,select { display:block; width:100%; padding:8px; border:1px solid var(--line); background:var(--surface); color:var(--fg); font-size:13px; }
+input::placeholder { color:var(--muted); }
+.field + .field { margin-top:12px; }
+.help { color:var(--muted); font-size:11px; line-height:1.65; margin:11px 0 0; }
+.controls .help { display:none; }
+.secondary { background:transparent; color:var(--fg); border:1px solid var(--line); font-size:11px; font-weight:600; padding:8px 11px; }
+.primary { width:100%; display:flex; justify-content:space-between; align-items:center; padding:13px 14px; color:var(--bg); background:var(--fg); border:1px solid var(--fg); font-size:13px; font-weight:600; }
+.primary.stop { background:transparent; color:var(--fg); }
+#browse { width:100%; margin-top:8px; text-align:left; }
+.control-section:first-child { position:relative; }
+.chats { position:absolute; top:100%; left:0; right:0; z-index:10; border:1px solid var(--line); background:var(--surface); max-height:215px; overflow:auto; }
+.chat-option { width:100%; text-align:left; display:block; border:0; border-bottom:1px solid var(--line); color:var(--fg); background:var(--surface); font-size:12px; padding:10px; }
+.chat-option:hover { background:var(--soft); }
+.chat-option small { display:block; font-size:10px; color:var(--muted); margin-top:3px; }
+#chat-status { color:var(--muted); font-size:11px; margin:9px 0 0; }
+.theme-options { display:flex; border:1px solid var(--line); }
+.theme-options button { flex:1; padding:9px 4px; border:0; border-right:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:11px; }
+.theme-options button:last-child { border-right:0; }
+.theme-options button[aria-pressed="true"] { color:var(--bg); background:var(--fg); }
+.action-section { padding-top:12px; margin-top:auto; flex-shrink:0; }
+#availability { display:grid; gap:4px; margin-top:10px; }
+.capability { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
+.capability b { font-weight:400; }
+.feed { min-width:0; min-height:0; padding:0 0 0 28px; display:flex; flex-direction:column; overflow:hidden; }
+.stats,.feed-heading { flex-shrink:0; }
+.conversation-scroll { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding-right:10px; padding-bottom:32px; }
+.stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:22px 0 20px; border-bottom:1px solid var(--line); gap:14px; }
+.stat-value { font-size:27px; line-height:1.15; letter-spacing:-.05em; margin-top:8px; }
+.feed-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:21px 0 15px; border-bottom:1px solid var(--line); }
+#room-title { font-size:15px; font-weight:600; letter-spacing:-.015em; overflow-wrap:anywhere; }
+#updated { font-size:10px; color:var(--muted); white-space:nowrap; }
+#error { padding:12px 14px; background:var(--soft); border-left:3px solid var(--error); color:var(--error); font-size:12px; margin:16px 0; }
+.empty { padding:65px 0 75px; max-width:400px; }
+.empty-symbol { font-family:monospace; color:var(--accent); font-size:27px; }
+.empty h3 { font-size:23px; letter-spacing:-.035em; font-weight:500; margin:16px 0 11px; }
+.empty p { font-size:13px; color:var(--muted); margin:0; }
+.empty ol { list-style:none; padding:0; margin:26px 0 0; counter-reset:step; }
+.empty li { counter-increment:step; font-size:12px; padding:8px 0; color:var(--muted); }
+.empty li::before { content:"0" counter(step); font:10px monospace; color:var(--accent); margin-right:18px; }
+.msg { display:grid; grid-template-columns:120px minmax(0,1fr); gap:17px; padding:21px 0; border-bottom:1px solid var(--line); }
+.meta { min-width:0; }
+.author { display:block; font-size:12px; font-weight:600; overflow-wrap:anywhere; }
+.time { display:block; font:10px/1.5 monospace; color:var(--muted); margin-top:5px; }
+.message-index { display:block; font-size:9px; color:var(--muted); margin-top:10px; }
+.text,.translation-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.text { font-size:14px; }
+.tr { padding:12px 0 0 13px; margin-top:13px; border-left:2px solid var(--accent); }
+.tr-label { color:var(--accent); display:block; font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:5px; }
+.translation-text { font-size:14px; }
+.tr.pending,.tr.error { color:var(--muted); }
+.tr.error { border-color:var(--error); }
+.tr.error .tr-label { color:var(--error); }
+.footnote { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; border-top:1px solid var(--fg); padding:10px 0; color:var(--muted); font-size:10px; }
+a { color:inherit; }
+@media(max-height:880px) and (min-width:761px) {
+  .hero h1 { font-size:38px; }
+  .hero { padding:15px 0; }
+  .control-section { padding:11px 0; }
+  .section-heading { margin-bottom:9px; }
+  .field + .field { margin-top:10px; }
+  .controls .help,#chat-status:empty { display:none; }
+  input,select { padding:7px 9px; }
+  #availability { margin-top:10px; gap:4px; }
+}
+@media(max-width:760px) {
+  .shell { padding:0 18px; }
+  .hero { padding:26px 0 21px; gap:15px; }
+  .hero-note { max-width:165px; font-size:11px; }
+  .workspace { display:flex; flex-direction:column; position:relative; }
+  .controls { border-right:0; padding:0; }
+  .controls-inner { display:grid; grid-template-columns:1fr 1fr; column-gap:20px; height:auto; }
+  .control-section { padding:18px 0; }
+  .action-section { padding:18px 0; align-self:end; border-bottom:1px solid var(--line); }
+  #availability { display:none; }
+  .feed { padding:0; flex:1; }
+  .stats { padding-top:21px; }
+  .stat-value { font-size:23px; }
+  .msg { grid-template-columns:95px minmax(0,1fr); gap:12px; padding:18px 0; }
+  .hero-note { display:none; }
+  #updated { white-space:normal; text-align:right; }
+  .top-meta { gap:9px; }
+  .controls { flex-shrink:0; }
+  .control-section { padding:8px 0; }
+  .controls .help { display:none; }
+  .section-heading { margin-bottom:8px; }
+  input,select { padding:7px 8px; }
+  .field + .field { margin-top:8px; }
+  .stats { padding:12px 0; }
+  .feed-heading { padding:12px 0; }
+  #settings-toggle { display:block; padding:5px 7px; }
+  .controls { display:none; }
+  .controls.mobile-open { display:block; position:absolute; inset:0 auto 0 0; width:min(320px,100%); padding:0 16px 12px; z-index:6; border-right:1px solid var(--line); background:var(--bg); }
+  .controls-inner { display:flex; height:100%; }
+  .action-section { margin-top:auto; }
+  .badge { display:none; }
+}
+@media(prefers-reduced-motion:no-preference) { button { transition:background .15s,color .15s; } }
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="topline">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">K</span><span>KAKAO / TRANSLATOR</span></div>
+    <div class="top-meta"><button id="settings-toggle" class="secondary" type="button" aria-expanded="false" aria-controls="workspace-controls">Settings</button><span id="mode" class="badge">Local · read-only</span><span id="connection"><span class="dot"></span><span id="run">Connecting</span></span></div>
+  </div>
+  <div class="hero">
+    <div><div class="eyebrow">Conversation, made legible.</div><h1>KakaoTalk Translator</h1></div>
+    <p class="hero-note">A private workspace for reading conversations across languages.</p>
+  </div>
+</header>
+<div class="workspace">
+<aside id="workspace-controls" class="controls" aria-label="Workspace settings">
+<div class="controls-inner">
+  <section class="control-section">
+    <div class="section-heading"><span class="section-index">01</span><h2>Source</h2></div>
+    <label for="chat">Chat name</label><input id="chat" placeholder="Choose or enter a chat" autocomplete="off">
+    <button id="browse" class="secondary" type="button" aria-expanded="false" aria-controls="chats">Browse your chats ↗</button>
+    <p id="chat-status" role="status"></p><div id="chats" class="chats" hidden></div>
+    <p class="help">Reads the local KakaoTalk database on your Mac. No messages are sent.</p>
+  </section>
+  <section class="control-section">
+    <div class="section-heading"><span class="section-index">02</span><h2>Translation</h2></div>
+    <div class="field"><label for="agent">Translation engine</label><select id="agent">
+      <option value="none">Off — original messages only</option>
+      <option value="claude">Claude Code</option>
+      <option value="codex">Codex CLI</option>
+    </select></div>
+    <div class="field"><label for="target">Translate to</label><select id="target"><option value="en">English</option><option value="ko">Korean</option></select></div>
+    <p class="help" id="translation-hint">Choose an engine to enable translation.</p>
+  </section>
+  <section class="control-section">
+    <div class="section-heading"><span class="section-index">03</span><h2>Appearance</h2></div>
+    <label>Color theme</label>
+    <div class="theme-options" role="group" aria-label="Color theme">
+      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-theme="system" aria-pressed="true">System</button>
+    </div>
+    <div class="field" style="margin-top:16px"><label for="interval">Refresh interval</label><select id="interval"><option value="3">3 seconds</option><option value="4">4 seconds</option><option value="5">5 seconds</option></select></div>
+  </section>
+  <div class="action-section">
+    <button id="toggle" class="primary" type="button" disabled><span id="toggle-label">Start reading</span><span aria-hidden="true">→</span></button>
+    <div id="availability"></div>
+    <p class="help" id="session-note">Preferences stay on this computer. Messages stay in memory.</p>
+  </div>
+</div>
+</aside>
+<main class="feed">
+  <div class="stats" aria-label="Stream statistics">
+    <div><div class="eyebrow">Messages</div><div class="stat-value" id="count">000</div></div>
+    <div><div class="eyebrow">Translated</div><div class="stat-value" id="translated">000</div></div>
+    <div><div class="eyebrow">In queue</div><div class="stat-value" id="pending">000</div></div>
+    <div><div class="eyebrow">Refresh</div><div class="stat-value"><span id="refresh-value">4</span><span style="font-size:14px">s</span></div></div>
+  </div>
+  <div class="feed-heading"><span id="room-title">No chat selected</span><span id="updated">Waiting for first update</span></div>
+  <div id="conversation" class="conversation-scroll" tabindex="0" aria-label="Scrollable conversation">
+  <div id="error" role="alert" hidden></div>
+  <div id="empty" class="empty">
+    <div class="empty-symbol" aria-hidden="true">↳</div>
+    <h3>Your conversation starts here.</h3>
+    <p>Select a chat to read messages and follow the conversation in another language.</p>
+    <ol><li>Open KakaoTalk and sign in on this Mac.</li><li>Browse your chats or enter a room name.</li><li>Choose translation, then start reading.</li></ol>
+  </div>
+  <div id="list-msgs" role="log" aria-label="Messages"></div>
+  </div>
+</main>
+</div>
+<footer class="footnote"><span id="privacy-note">Local reader. Translation uses your own signed-in CLI.</span><span>No tracking · No hosted chat storage</span></footer>
+</div>
+<script>
+const $ = function(id) { return document.getElementById(id); };
+const H = { "Content-Type":"application/json", "X-Kakao-Live":"1" };
+let after = 0, running = false, timer = null, stickBottom = true, stream = null, selectedChatId = null, lastState = null, initialized = false;
+const nodes = new Map();
+function showError(message) { $("error").textContent = message || ""; $("error").hidden = !message; }
+function clearMessages() { nodes.forEach(function(n) { n.remove(); }); nodes.clear(); after = 0; $("empty").hidden = false; }
+async function api(path, body) {
+  const response = await fetch(path, body === undefined ? {cache:"no-store"} : {method:"POST",headers:H,body:JSON.stringify(body)});
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "The local request failed.");
+  return data;
+}
+function fmtTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return isNaN(date) ? "" : date.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+}
+function render(message) {
+  let el = nodes.get(message.id);
+  if (!el) {
+    el = document.createElement("article"); el.className = "msg";
+    el.innerHTML = '<div class="meta"><span class="author"></span><time class="time"></time><span class="message-index"></span></div><div><div class="text"></div><div class="tr" hidden><span class="tr-label"></span><div class="translation-text"></div></div></div>';
+    nodes.set(message.id,el); $("list-msgs").appendChild(el);
+    el.querySelector(".message-index").textContent = String(nodes.size).padStart(3,"0");
+  }
+  el.querySelector(".author").textContent = message.author;
+  el.querySelector(".time").textContent = fmtTime(message.sentAt);
+  if (message.sentAt) el.querySelector(".time").dateTime = message.sentAt;
+  el.querySelector(".text").textContent = message.text;
+  const tr = el.querySelector(".tr");
+  tr.hidden = message.tstate === "skip";
+  tr.className = "tr " + (message.tstate === "done" ? "" : message.tstate);
+  const language = lastState && lastState.target === "ko" ? "Korean" : "English";
+  tr.querySelector(".tr-label").textContent = message.tstate === "done"
+    ? language + (message.truncated ? " · first 2,000 characters" : "")
+    : message.tstate === "pending" ? "Translation queued" : "Translation unavailable";
+  tr.querySelector(".translation-text").textContent = message.tstate === "done" ? message.translation : message.tstate === "pending" ? "Translating…" : "Check your engine and sign-in status.";
+}
+function applyState(state) {
+  lastState = state; running = state.running;
+  $("toggle-label").textContent = running ? "Stop reading" : "Start reading";
+  $("toggle").className = "primary" + (running ? " stop" : "");
+  $("toggle").disabled = !running && !state.demo && !$("chat").value.trim();
+  $("connection").className = running ? "on" : "";
+  $("run").textContent = running ? "Reading" : "Stopped";
+  $("mode").textContent = state.demo ? "Demo · fictional data" : "Local · read-only";
+  $("count").textContent = String(state.count || 0).padStart(3,"0");
+  $("translated").textContent = String(state.translationCounts && state.translationCounts.done || 0).padStart(3,"0");
+  $("pending").textContent = String(state.translationCounts && state.translationCounts.pending || 0).padStart(3,"0");
+  $("refresh-value").textContent = state.intervalSec;
+  $("room-title").textContent = state.chat || "No chat selected";
+  $("updated").textContent = state.lastPollAt ? "Updated " + fmtTime(state.lastPollAt) : "Waiting for first update";
+  showError(state.lastError);
+  const a = state.available || {};
+  $("availability").replaceChildren();
+  for (const item of [["kakaocli",a.kakaocli],["Claude Code",a.claudeCompatible],["Codex CLI",a.codexCompatible]]) {
+    const row = document.createElement("div"); row.className = "capability";
+    const label = document.createElement("span"); label.textContent = item[0];
+    const value = document.createElement("b"); value.textContent = item[1] ? "Detected" : "Not available";
+    row.append(label,value); $("availability").appendChild(row);
+  }
+  const sampleOption = $("agent").querySelector('option[value="demo"]');
+  if (state.demo && !sampleOption) { const opt = document.createElement("option"); opt.value="demo";opt.textContent="Sample translations (demo)";$("agent").appendChild(opt); }
+  $("agent").querySelector('option[value="claude"]').disabled = !a.claudeCompatible;
+  $("agent").querySelector('option[value="codex"]').disabled = !a.codexCompatible;
+  if (!initialized) {
+    $("chat").value = state.chat; selectedChatId = state.chatId; $("agent").value=state.agent; $("target").value=state.target; $("interval").value=String(state.intervalSec); initialized=true;
+    $("toggle").disabled = !running && !state.demo && !state.chat;
+  }
+  $("translation-hint").textContent = state.agent === "none" ? "Original messages only. No text is sent to an AI provider."
+    : state.agent === "demo" ? "Fictional messages and prewritten sample translations. No AI calls."
+    : (state.target === "en" ? "Korean messages → English. " : "Messages without Korean text → Korean. ") + "Sends text to your signed-in provider.";
+  $("session-note").textContent = state.demo ? "Demo mode does not read KakaoTalk or save chat preferences." : "Preferences stay on this computer. Messages stay in memory.";
+  if (state.demo) {
+    $("empty").querySelector("h3").textContent="Try a sample conversation.";
+    $("empty").querySelector("p").textContent="Start reading to preview fictional messages and sample translations. KakaoTalk and an AI account are not required.";
+    $("empty").querySelector("ol").hidden=true;
+  }
+}
+let ticking = false;
+async function tick() {
+  if (ticking) return;
+  ticking=true;
+  try {
+    let data = await api("/api/messages?after=" + after);
+    if (stream && stream !== data.state.streamId) { clearMessages(); data = await api("/api/messages?after=0"); }
+    stream=data.state.streamId; applyState(data.state);
+    for (const m of data.messages) { render(m);after=Math.max(after,m.seq); }
+    if (data.messages.length) $("empty").hidden=true;
+    while (nodes.size > (data.state.limit || 500)) { const id=nodes.keys().next().value;nodes.get(id).remove();nodes.delete(id); }
+    if (data.messages.length && stickBottom) $("conversation").scrollTop=$("conversation").scrollHeight;
+  } catch { showError("Cannot connect to the local server. Start it with npm start, then refresh this page."); $("run").textContent="Disconnected";$("connection").className=""; }
+  finally { ticking=false;clearTimeout(timer);timer=setTimeout(tick,Number($("interval").value||4)*1000); }
+}
+async function saveConfig() {
+  const data = await api("/api/config",{chat:$("chat").value,chatId:selectedChatId,agent:$("agent").value,target:$("target").value,intervalSec:Number($("interval").value)});
+  applyState(data);return data;
+}
+$("toggle").onclick = async function() {
+  try {
+    if (running) { applyState(await api("/api/stop",{}));return; }
+    await saveConfig();applyState(await api("/api/start",{}));await tick();
+  } catch(e) { showError(e.message); }
+};
+$("chat").oninput = function() { selectedChatId=null;$("toggle").disabled=!running&&!$("chat").value.trim(); };
+$("chat").onchange = async function() { try { await saveConfig();await tick(); } catch(e) { showError(e.message); } };
+for (const id of ["agent","target","interval"]) $(id).onchange = async function() { try { await saveConfig();await tick(); } catch(e) { showError(e.message); } };
+function closeChatPicker() {
+  $("chats").hidden=true;
+  $("browse").textContent="Browse your chats ↗";
+  $("browse").setAttribute("aria-expanded","false");
+  $("chat-status").textContent="";
+}
+$("browse").onclick = async function() {
+  if (!$("chats").hidden) { closeChatPicker();return; }
+  $("chat-status").textContent="Loading chats…";$("browse").disabled=true;
+  try {
+    const data=await api("/api/chats");$("chats").replaceChildren();$("chats").hidden=false;
+    $("browse").textContent="Hide your chats ↑";$("browse").setAttribute("aria-expanded","true");
+    $("chat-status").textContent=data.chats.length + " chats · names are local to your account";
+    for (const chat of data.chats) {
+      const button=document.createElement("button");button.type="button";button.className="chat-option";
+      const name=document.createElement("span");name.textContent=chat.display_name;
+      const meta=document.createElement("small");meta.textContent=(chat.member_count||0) + " participants";
+      button.append(name,meta);
+      button.onclick=async function() {
+        $("chat").value=chat.display_name;selectedChatId=/^\d+$/.test(chat.id)?chat.id:null;closeChatPicker();
+        try { await saveConfig();await tick(); if(window.matchMedia("(max-width:760px)").matches){$("workspace-controls").classList.remove("mobile-open");$("settings-toggle").setAttribute("aria-expanded","false");} } catch(e) { showError(e.message); }
+      };
+      $("chats").appendChild(button);
+    }
+    if (!data.chats.length) $("chat-status").textContent="No chats found. Open KakaoTalk and check your local account.";
+  } catch(e) { $("chat-status").textContent=e.message; }
+  finally { $("browse").disabled=false; }
+};
+document.addEventListener("click",function(event) {
+  if (!$("chats").hidden && !event.target.closest("#browse, #chats")) closeChatPicker();
+});
+document.addEventListener("keydown",function(event) {
+  if (event.key === "Escape" && !$("chats").hidden) { closeChatPicker();$("browse").focus(); }
+});
+function applyTheme(theme) {
+  document.documentElement.dataset.theme=theme;
+  for (const button of document.querySelectorAll(".theme-options button")) button.setAttribute("aria-pressed",String(button.dataset.theme===theme));
+}
+for (const button of document.querySelectorAll(".theme-options button")) button.onclick=function() {
+  applyTheme(button.dataset.theme);try { localStorage.setItem("kakao-live.theme",button.dataset.theme); } catch {}
+};
+applyTheme(document.documentElement.dataset.theme);
+$("settings-toggle").onclick=function() { const open=$("workspace-controls").classList.toggle("mobile-open");$("settings-toggle").setAttribute("aria-expanded",String(open)); };
+$("conversation").addEventListener("scroll",function() { const feed=$("conversation");stickBottom=feed.clientHeight+feed.scrollTop>=feed.scrollHeight-90; });
+tick();
+</script>
+</body>
+</html>

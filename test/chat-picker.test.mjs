@@ -1,0 +1,31 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+
+test("chat picker closes on toggle, outside click, Escape and selection", async () => {
+  const html=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
+  const code=html.slice(html.indexOf("function closeChatPicker()"),html.indexOf("function applyTheme(theme)"));
+  const element=()=>({hidden:true,disabled:false,textContent:"",value:"",children:[],attrs:{},
+    setAttribute(key,value){this.attrs[key]=value;},replaceChildren(){this.children=[];},
+    append(...children){this.children.push(...children);},appendChild(child){this.children.push(child);},
+    focus(){this.focused=true;}});
+  const nodes=Object.fromEntries(["browse","chats","chat-status","chat"].map(id=>[id,element()]));
+  const listeners={};let calls=0;
+  const context=vm.createContext({
+    $:id=>nodes[id],selectedChatId:null,
+    api:async()=>{calls++;return {chats:[{id:"999999999999999999",display_name:"Sample room",member_count:4}]};},
+    saveConfig:async()=>{},tick:async()=>{},showError:message=>{throw Error(message);},
+    window:{matchMedia:()=>({matches:false})},
+    document:{createElement:element,addEventListener:(event,handler)=>{listeners[event]=handler;}},
+  });
+  vm.runInContext(code,context);
+  await nodes.browse.onclick();assert.equal(nodes.chats.hidden,false);assert.equal(nodes.browse.attrs["aria-expanded"],"true");
+  await nodes.browse.onclick();assert.equal(nodes.chats.hidden,true);assert.equal(calls,1,"closing does not request chats again");
+  assert.equal(nodes.browse.textContent,"Browse your chats ↗");assert.equal(nodes["chat-status"].textContent,"");
+  await nodes.browse.onclick();listeners.click({target:{closest:()=>({})}});assert.equal(nodes.chats.hidden,false);
+  listeners.click({target:{closest:()=>null}});assert.equal(nodes.chats.hidden,true);
+  await nodes.browse.onclick();listeners.keydown({key:"Escape"});assert.equal(nodes.chats.hidden,true);assert.equal(nodes.browse.focused,true);
+  await nodes.browse.onclick();await nodes.chats.children[0].onclick();
+  assert.equal(nodes.chats.hidden,true);assert.equal(nodes.chat.value,"Sample room");assert.equal(context.selectedChatId,"999999999999999999");
+});
